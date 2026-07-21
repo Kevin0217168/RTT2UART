@@ -1,7 +1,7 @@
 from pickle import NONE
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QHeaderView, QAbstractItemView, QMessageBox, QSystemTrayIcon, QMenu
-from PySide6.QtCore import QFile, QAbstractTableModel
+from PySide6.QtCore import QFile, QAbstractTableModel, QSortFilterProxyModel, Qt
 from PySide6 import QtGui
 from PySide6 import QtCore
 from PySide6.QtGui import QFont, QIcon, QAction
@@ -63,6 +63,21 @@ class DeviceTableModel(QtCore.QAbstractTableModel):
         return None
 
 
+class DeviceFilterProxyModel(QSortFilterProxyModel):
+    """Proxy model that filters devices by manufacturer or device name."""
+    def filterAcceptsRow(self, source_row, source_parent):
+        if not self.filterRegularExpression():
+            return True
+        model = self.sourceModel()
+        # Search in Manufacturer (col 0) and Device (col 1)
+        for col in [0, 1]:
+            index = model.index(source_row, col, source_parent)
+            data = model.data(index, Qt.DisplayRole)
+            if data and self.filterRegularExpression().match(str(data)).hasMatch():
+                return True
+        return False
+
+
 class DeviceSeleteDialog(QDialog):
     def __init__(self):
         super(DeviceSeleteDialog, self).__init__()
@@ -82,10 +97,15 @@ class DeviceSeleteDialog(QDialog):
             headdata = ["Manufacturer", "Device", "Core",
                         "NumCores", "Flash Size", "RAM Size"]
 
-            # 生成一个模型，用来给tableview
-            model = DeviceTableModel(self.devices_list, headdata)
+            # 生成源模型
+            self.source_model = DeviceTableModel(self.devices_list, headdata)
 
-            self.ui.tableView.setModel(model)
+            # 生成排序/过滤代理模型
+            self.proxy_model = DeviceFilterProxyModel()
+            self.proxy_model.setSourceModel(self.source_model)
+            self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
+
+            self.ui.tableView.setModel(self.proxy_model)
             # set font
             # font = QFont("Courier New", 9)
             # self.ui.tableView.setFont(font)
@@ -105,6 +125,13 @@ class DeviceSeleteDialog(QDialog):
                 QAbstractItemView.SelectRows)
 
             self.ui.tableView.clicked.connect(self.reflash_selete_device)
+
+            # 连接搜索框
+            self.ui.lineEdit_search.textChanged.connect(self.filter_devices)
+
+    def filter_devices(self, text):
+        """根据搜索文本过滤器件列表"""
+        self.proxy_model.setFilterRegularExpression(text)
 
     def get_jlink_devices_list_file(self):
         if os.path.exists(r'JLinkDevicesBuildIn.xml') == True:
@@ -158,8 +185,9 @@ class DeviceSeleteDialog(QDialog):
         return jlink_devices_list
 
     def reflash_selete_device(self):
-        index = self.ui.tableView.currentIndex()
-        self._target = self.devices_list[index.row()][1]
+        proxy_index = self.ui.tableView.currentIndex()
+        source_index = self.proxy_model.mapToSource(proxy_index)
+        self._target = self.devices_list[source_index.row()][1]
         self.ui.label_sel_dev.setText(self._target)
 
     def get_target_device(self):

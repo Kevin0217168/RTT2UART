@@ -16,19 +16,19 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QDialog, QDialogButtonBox,
-    QFrame, QHeaderView, QLabel, QSizePolicy,
+    QFrame, QHeaderView, QLabel, QLineEdit, QSizePolicy,
     QTableView, QWidget)
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         if not Dialog.objectName():
             Dialog.setObjectName(u"Dialog")
-        Dialog.resize(779, 385)
-        Dialog.setMinimumSize(QSize(779, 385))
-        Dialog.setMaximumSize(QSize(779, 385))
+        Dialog.resize(779, 415)
+        Dialog.setMinimumSize(QSize(779, 415))
+        Dialog.setMaximumSize(QSize(779, 415))
         self.buttonBox = QDialogButtonBox(Dialog)
         self.buttonBox.setObjectName(u"buttonBox")
-        self.buttonBox.setGeometry(QRect(430, 350, 341, 32))
+        self.buttonBox.setGeometry(QRect(430, 380, 341, 32))
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
         self.label = QLabel(Dialog)
@@ -36,13 +36,18 @@ class Ui_Dialog(object):
         self.label.setGeometry(QRect(10, 10, 91, 16))
         self.label_sel_dev = QLabel(Dialog)
         self.label_sel_dev.setObjectName(u"label_sel_dev")
-        self.label_sel_dev.setGeometry(QRect(110, 10, 161, 16))
+        self.label_sel_dev.setGeometry(QRect(110, 10, 200, 16))
+        self.lineEdit_search = QLineEdit(Dialog)
+        self.lineEdit_search.setObjectName(u"lineEdit_search")
+        self.lineEdit_search.setGeometry(QRect(10, 33, 300, 24))
+        self.lineEdit_search.setPlaceholderText("Search device or manufacturer...")
+        self.lineEdit_search.setClearButtonEnabled(True)
         self.tableView = QTableView(Dialog)
         self.tableView.setObjectName(u"tableView")
-        self.tableView.setGeometry(QRect(10, 30, 761, 311))
+        self.tableView.setGeometry(QRect(10, 65, 761, 306))
         self.line = QFrame(Dialog)
         self.line.setObjectName(u"line")
-        self.line.setGeometry(QRect(10, 340, 761, 16))
+        self.line.setGeometry(QRect(10, 373, 761, 16))
         self.line.setFrameShape(QFrame.HLine)
         self.line.setFrameShadow(QFrame.Sunken)
 
