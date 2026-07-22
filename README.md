@@ -33,24 +33,47 @@ cd RTT2UART
 pip install -r requirements.txt
 ```
 
-### 2. Linux：安装 socat 并创建虚拟串口对
+### 2. Linux：安装虚拟串口对
+
+**推荐：使用 `tty0tty` 内核模块**（注册到内核串口子系统，VOFA+、Putty 等均能自动发现）
 
 ```bash
-# 安装 socat
-sudo apt install socat
+# 安装依赖
+sudo apt install git build-essential linux-headers-$(uname -r)
 
-# 创建一对虚拟串口（保持该终端运行，不要关闭）
-socat -d -d pty,raw,echo=0 pty,raw,echo=0
+# 克隆并编译
+git clone https://github.com/freemed/tty0tty.git /tmp/tty0tty
+cd /tmp/tty0tty/module
+make
+
+# 安装模块
+sudo cp tty0tty.ko /lib/modules/$(uname -r)/kernel/drivers/tty/
+sudo depmod
+
+# 安装 udev 规则（设置 dialout 组权限）
+sudo cp 50-tty0tty.rules /etc/udev/rules.d/
+
+# 加载模块
+sudo modprobe tty0tty
+sudo udevadm trigger
+
+# 开机自动加载
+echo 'tty0tty' | sudo tee -a /etc/modules
 ```
 
-执行后会输出两个设备名，例如：
+加载后产生 4 对虚拟串口：
 
-```
-N PTY is /dev/pts/3
-N PTY is /dev/pts/5
-```
+| 对 1 | 对 2 | 对 3 | 对 4 |
+|------|------|------|------|
+| `/dev/tnt0` ↔ `/dev/tnt1` | `/dev/tnt2` ↔ `/dev/tnt3` | `/dev/tnt4` ↔ `/dev/tnt5` | `/dev/tnt6` ↔ `/dev/tnt7` |
 
-> 记下这两个设备名。RTT2UART 使用其中一个，串口终端使用另一个。
+> **备选：socat**（虚拟终端，但 VOFA 等工具无法自动发现）
+>
+> ```bash
+> socat -d -d pty,raw,echo=0,link=/tmp/ttyV0 pty,raw,echo=0,link=/tmp/ttyV1
+> ```
+>
+> RTT2UART 的 Scan 按钮会自动扫描上述所有设备类型（`/dev/tnt*`、`/dev/ttyS*`、`/tmp/ttyV*`）。
 
 ### 3. Windows：安装 com0com 并创建虚拟串口对
 
@@ -88,7 +111,7 @@ python main_window.py
 | **① 选择器件** | 点击 **Selete Device**，在列表中找到你的 MCU 型号，点击选中后按 OK |
 | **② 配置接口** | 接口一般选 **SWD**；速率根据 J-Link 型号选择（V9 可选 4000–8000 kHz） |
 | **③ 复位（可选）** | 勾选 **Reset target** 在连接时复位目标 MCU |
-| **④ 扫描串口** | 点击 **Scan**，在下拉列表中选择虚拟串口对中的**第一个**（Linux 如 `/dev/pts/3`） |
+| **④ 扫描串口** | 点击 **Scan**，在下拉列表中选择虚拟串口对中的**第一个**（如 `/dev/tnt0`、`/dev/ttyS222` 或 `/tmp/ttyV0`） |
 | **⑤ 设置波特率** | 选择与目标 RTT 匹配的波特率（常用 **115200**） |
 | **⑥ 启动桥接** | 点击 **Start** 开始转换 |
 
@@ -100,10 +123,14 @@ python main_window.py
 
 ```bash
 # 方式一：minicom
-minicom -D /dev/pts/5 -b 115200
+minicom -D /dev/tnt1 -b 115200
 
 # 方式二：screen（退出按 Ctrl+A 然后 K）
-screen /dev/pts/5 115200
+screen /dev/tnt1 115200
+
+# 方式三：VOFA+ 等图形工具
+# 使用 tty0tty 时端口列表会自动出现 /dev/tnt1
+# 使用 socat 时在端口栏手动输入 /tmp/ttyV1
 ```
 
 **Windows：**
@@ -177,12 +204,21 @@ sudo usermod -a -G dialout $USER
 pkill socat
 ```
 
-### 找不到目标器件
+### tty0tty 模块加载失败
 
-程序启动时会自动从 J-Link 驱动中导出最新的器件列表（`JLinkDevicesBuildIn.xml`）。如果仍找不到你的器件，按以下步骤手动导出：
+重新编译并加载：
 
-1. 打开 J-Flash 或 J-Link Commander
-2. 导出器件列表并替换项目目录下的 `JLinkDevicesBuildIn.xml`
+```bash
+cd /tmp/tty0tty/module
+make clean && make
+sudo cp tty0tty.ko /lib/modules/$(uname -r)/kernel/drivers/tty/
+sudo depmod
+sudo modprobe tty0tty
+sudo chmod 660 /dev/tnt*
+sudo chown root:dialout /dev/tnt*
+```
+
+> 内核更新后需要重新编译并安装模块。
 
 ---
 

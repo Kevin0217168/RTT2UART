@@ -325,16 +325,32 @@ class MainWindow(QDialog):
         e.accept()
 
     def port_scan(self):
+        import glob
         port_list = list(serial.tools.list_ports.comports())
         self.ui.comboBox_Port.clear()
+        found_ports = set()
         port_list.sort()
         for port in port_list:
             try:
                 s = serial.Serial(port[0])
                 s.close()
                 self.ui.comboBox_Port.addItem(port[0])
+                found_ports.add(port[0])
             except (OSError, serial.SerialException):
                 pass
+
+        # Linux: 扫描额外串口设备（/dev/ttyS* 高编号虚拟串口、/dev/tnt* tty0tty 内核模块、/tmp/ttyV* socat 符号链接）
+        for pattern in ['/dev/tnt*', '/dev/ttyS*', '/tmp/ttyV*']:
+            for dev in sorted(glob.glob(pattern)):
+                if dev in found_ports:
+                    continue
+                try:
+                    s = serial.Serial(dev)
+                    s.close()
+                    self.ui.comboBox_Port.addItem(dev)
+                    found_ports.add(dev)
+                except (OSError, serial.SerialException):
+                    pass
 
     def start(self):
         if self.start_state == False:
